@@ -26,7 +26,7 @@ async def app_middleware(app, handler):
 
 def start_app(port):
     app = web.Application(middlewares=[db_middleware, app_middleware])
-    with open("config/topline.yaml", 'r') as stream:
+    with open("config.yml", 'r') as stream:
         config = yaml.load(stream)
         app['db_dsn'] = DSN.format(**config)
     setup_routes(app)
