@@ -12,7 +12,7 @@ services:
     environment:
       - C_FORCE_ROOT=true
     networks:
-      - topline-network
+      - app-network
     depends_on:
       - postgres
 
@@ -32,7 +32,7 @@ services:
       POSTGRES_DB: #
 
     networks:
-      - lab-network
+      - app-network
 
 volumes:
   postgres-data:
@@ -41,5 +41,5 @@ volumes:
   topline-var:
 
 networks:
-  lab-network:
+  app-network:
     driver: bridge
