@@ -30,7 +30,6 @@ async def run_migrations():
 
         migrations_for_run = sorted(set(migrations) - completed_migrations)
 
-    async with db_pool.acquire() as connection:
         for migration in migrations_for_run:
             print('Running migration {}'.format(migration))
             async with connection.cursor() as cur:
