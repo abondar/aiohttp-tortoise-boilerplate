@@ -2,8 +2,9 @@ import argparse
 
 import aiopg
 import yaml
-from aiohttp import web
+from aiohttp import web, asyncio
 from app.router import setup_routes
+from run_migrations import run_migrations
 
 DSN = 'dbname={db_name} user={db_user} password={db_password} host={db_host} port={db_port}'
 
@@ -17,18 +18,12 @@ async def db_middleware(app, handler):
         return await handler(request)
     return middleware
 
-async def app_middleware(app, handler):
-    async def middleware(request):
-        request['app'] = app
-        return await handler(request)
-    return middleware
-
 
 def start_app(port):
-    app = web.Application(middlewares=[db_middleware, app_middleware])
-    with open("config.yml", 'r') as stream:
-        config = yaml.load(stream)
-        app['db_dsn'] = DSN.format(**config)
+    app = web.Application(middlewares=[db_middleware])
+
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(asyncio.ensure_future(run_migrations()))
     setup_routes(app)
     web.run_app(app, port=port)
 

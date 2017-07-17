@@ -5,8 +5,7 @@ services:
     build: .
     container_name: app.server
     ports:
-      - "80:80"
-      - "5555:5555"
+      - "5000:5000"
     volumes:
       - ./:/home/sites/app/
     environment:
@@ -17,10 +16,10 @@ services:
       - postgres
 
   postgres:
-    image: postgres:9.5
+    image: postgres:9.6
     container_name: app.postgres
     ports:
-      - "54320:5432"
+      - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data/
       - postgres-conf:/etc/postgresql

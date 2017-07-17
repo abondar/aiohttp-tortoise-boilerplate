@@ -1,9 +1,9 @@
-FROM python:3.5.2
+FROM python:3.6
 
-RUN mkdir -p /home/sites/app
-WORKDIR /home/sites/app
+COPY requirements.txt requirements.txt
+RUN pip install -r requirements.txt
+RUN mkdir /home/app/
+WORKDIR /home/app/
+COPY . .
 
-COPY ./requirements.txt /home/sites/app/requirements.txt
-RUN pip3 install -r requirements.txt
-
-CMD [ "python", "./main.py"]
+CMD [ "python", "run.py"]
