@@ -1,4 +1,4 @@
-version: "2"
+version: "3"
 
 services:
   app:
@@ -7,9 +7,7 @@ services:
     ports:
       - "5000:5000"
     volumes:
-      - ./:/home/sites/app/
-    environment:
-      - C_FORCE_ROOT=true
+      - ./:/home/app/
     networks:
       - app-network
     depends_on:

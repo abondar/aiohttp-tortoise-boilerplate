@@ -3,4 +3,5 @@ database:
   port:
   user:
   database:
+  test_database:
   password:

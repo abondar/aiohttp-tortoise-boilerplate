@@ -2,8 +2,8 @@ import argparse
 
 from aiohttp import web, asyncio
 
-from app.db_client import DBAsyncClient
 from app.router import setup_routes
+from app.services.db_client import DBAsyncClient
 from run_migrations import run_migrations
 
 
