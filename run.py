@@ -5,21 +5,15 @@ from aiohttp import web, asyncio
 from app.router import setup_routes
 from app.services.db_client import DBAsyncClient
 from run_migrations import run_migrations
-
-
-async def db_middleware(app, handler):
-    async def middleware(request):
-        request['db'] = app['db']
-        return await handler(request)
-    return middleware
+from settings import DB_CONFIG
 
 
 def start_app(port):
-    app = web.Application(middlewares=[db_middleware])
+    app = web.Application()
 
-    app['db'] = DBAsyncClient()
+    app['db'] = DBAsyncClient(**DB_CONFIG)
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(asyncio.ensure_future(run_migrations()))
+    loop.run_until_complete(run_migrations())
     setup_routes(app)
     web.run_app(app, port=port)
 
