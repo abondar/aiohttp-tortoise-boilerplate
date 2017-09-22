@@ -7,7 +7,7 @@ import asyncpg
 class DBAsyncClient:
     DSN_TEMPLATE = 'postgres://{user}:{password}@{host}:{port}/{database}'
 
-    def __init__(self, user, password, database, host, port):
+    def __init__(self, user, password, database, host, port, *args, **kwargs):
         self.dsn = self.DSN_TEMPLATE.format(user=user, password=password, host=host, port=port, database=database)
         self._db_user = user
         self._db_pool = None
