@@ -1,6 +1,4 @@
-aiohttp==2.2.3
+aiohttp==2.2.5
 asyncpg==0.12.0
 marshmallow==2.13.5
 PyYAML==3.12
-python-dateutil==2.5.3
-pytest==3.0.3

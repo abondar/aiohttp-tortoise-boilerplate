@@ -3,9 +3,7 @@ version: "3"
 services:
   app:
     build: .
-    container_name: app.server
-    ports:
-      - "5000:5000"
+    container_name: app.backend
     volumes:
       - ./:/home/app/
     networks:
@@ -25,9 +23,22 @@ services:
 
     environment:
       LC_ALL: C.UTF-8
-      POSTGRES_PASSWORD: #
-      POSTGRES_DB: #
+      POSTGRES_PASSWORD: testpassword # CHANGE_ME
+      POSTGRES_DB: app
 
+    networks:
+      - app-network
+
+  nginx:
+    image: nginx
+    restart: always
+    container_name: app.nginx
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+    volumes:
+      - ./etc/nginx/conf.d:/etc/nginx/conf.d
     networks:
       - app-network
 
