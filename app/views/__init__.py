@@ -1,6 +1,7 @@
 import asyncio
 import json
 
+import datetime
 from aiohttp import web, hdrs
 from marshmallow import Schema
 
@@ -44,8 +45,8 @@ class PaginateMixin:
 
     def paginate_result(self, result, count):
         query_params = self.request.query
-        page = query_params.get('page', 1)
-        page_size = query_params.get('page_size', self.page_size)
+        page = int(query_params.get('page', 1))
+        page_size = int(query_params.get('page_size', self.page_size))
 
         response = {
             'count': count,
@@ -55,12 +56,12 @@ class PaginateMixin:
         }
 
         if page > 1:
-            previous_page_params = copy(query_params)
+            previous_page_params = dict(query_params)
             previous_page_params['page'] = page - 1
             response['previous'] = self.get_request_url(previous_page_params)
 
         if (page * page_size) < count:
-            next_page_params = copy(query_params)
+            next_page_params = dict(query_params)
             next_page_params['page'] = page + 1
             response['next'] = self.get_request_url(next_page_params)
 
