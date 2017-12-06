@@ -1,6 +1,6 @@
 import asyncpg
 
-from racing.services.db_client import DBAsyncClient
+from app.services.db_client import DBAsyncClient
 from run_migrations import run_migrations
 
 

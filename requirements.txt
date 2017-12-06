@@ -1,4 +1,4 @@
-aiohttp==2.2.5
-asyncpg==0.12.0
+aiohttp==2.3.6
+asyncpg==0.13.0
 marshmallow==2.13.5
 PyYAML==3.12
