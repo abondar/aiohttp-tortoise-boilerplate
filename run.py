@@ -3,18 +3,33 @@ import asyncio
 import logging
 
 from aiohttp import web
+from motor.motor_asyncio import AsyncIOMotorClient
 
+import settings
 from app.router import setup_routes
-from app.services.db_client import DBAsyncClient
 from run_migrations import run_migrations
-from settings import DB_CONFIG
+
+
+async def authenticate(config, db):
+    result = None
+    if 'password' in config and 'user' in config:
+        if 'auth_db' in config:
+            result = await db.authenticate(config['user'], config['password'], source=config['auth_db'])
+        else:
+            result = await db.authenticate(config['user'], config['password'])
+    return result
 
 
 def start_app(port):
     app = web.Application()
     logging.basicConfig(level=logging.INFO)
 
-    app['db'] = DBAsyncClient(**DB_CONFIG)
+    loop = asyncio.get_event_loop()
+    mongo_client = AsyncIOMotorClient('{}:{}'.format(settings.MONGO_CONFIG['host'], settings.MONGO_CONFIG['port']))
+    db = mongo_client[settings.MONGO_CONFIG['db']]
+    loop.run_until_complete(asyncio.ensure_future(authenticate(settings.MONGO_CONFIG, db)))
+
+    app['mongo'] = db
     loop = asyncio.get_event_loop()
     loop.run_until_complete(run_migrations())
     setup_routes(app)

@@ -1,7 +1,7 @@
-database:
-  host: app.postgres
-  port: 5432
-  user: postgres
-  database: app
-  password: testpassword
-  test_database: test_app
+mongo:
+  host: app.mongo
+  port: 27017
+#  user: postgres
+#  database: app
+#  password: testpassword
+#  auth_db: admin
