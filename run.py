@@ -20,6 +20,7 @@ def start_app(port):
     setup_routes(app)
     web.run_app(app, port=port)
 
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--port', help='Port, on which server will be serving')

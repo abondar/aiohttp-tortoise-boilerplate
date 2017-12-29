@@ -7,7 +7,7 @@ class BaseAPIException(Exception):
     default_message = 'Error while processing request'
     default_status_code = 400
 
-    def __init__(self, details=None, status_code=400, *args, **kwargs):
+    def __init__(self, details=None, status_code=None, *args, **kwargs):
         super().__init__(details, status_code, *args)
         assert isinstance(details, Mapping), 'details should be dict-like object'
         assert isinstance(status_code, Integral), 'status_code should be int'

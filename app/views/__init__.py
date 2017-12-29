@@ -22,7 +22,13 @@ class BaseView(web.View):
             data = self.request.query
         result = self.serializer.load(data)
         if result.errors:
-            raise APIException(result.errors, 400)
+            raise APIException(
+                details={
+                    'fieldErrors': result.errors,
+                    'details': 'Validation failed'
+                },
+                error_code=400
+            )
         self.validated_data = result.data
 
     @asyncio.coroutine
