@@ -36,9 +36,7 @@ services:
       - app-network
 
 volumes:
-  postgres-data:
-  postgres-conf:
-  postgres-logs:
+  mongo-data:
 
 networks:
   app-network:
