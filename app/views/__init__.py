@@ -4,6 +4,7 @@ import json
 import datetime
 from aiohttp import web, hdrs
 from marshmallow import Schema
+from multidict import MultiDict
 
 from app.exceptions import APIException, BaseAPIException
 
@@ -47,10 +48,10 @@ class BaseView(web.View):
 
 
 class PaginateMixin:
-    page_size = 20
+    page_size = 10
 
     def paginate_result(self, result, count):
-        query_params = self.request.query
+        query_params = MultiDict(self.request.query)
         page = int(query_params.get('page', 1))
         page_size = int(query_params.get('page_size', self.page_size))
 
@@ -62,12 +63,15 @@ class PaginateMixin:
         }
 
         if page > 1:
-            previous_page_params = dict(query_params)
-            previous_page_params['page'] = page - 1
+            previous_page_params = query_params
+            if (page_size * (page - 1)) > count and count:
+                previous_page_params['page'] = int(count / page_size) + 1
+            else:
+                previous_page_params['page'] = page - 1
             response['previous'] = self.get_request_url(previous_page_params)
 
         if (page * page_size) < count:
-            next_page_params = dict(query_params)
+            next_page_params = query_params
             next_page_params['page'] = page + 1
             response['next'] = self.get_request_url(next_page_params)
 
