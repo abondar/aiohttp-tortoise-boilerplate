@@ -1,7 +1,7 @@
 import asyncio
+import datetime
 import json
 
-import datetime
 from aiohttp import web, hdrs
 from marshmallow import Schema
 from multidict import MultiDict
@@ -11,6 +11,7 @@ from app.exceptions import APIException, BaseAPIException
 
 class BaseView(web.View):
     serializer = Schema()
+    response_serializer = Schema()
 
     async def pre_process_request(self):
         if self.request._method in {hdrs.METH_POST, hdrs.METH_PUT, hdrs.METH_PATCH, hdrs.METH_DELETE}:
@@ -28,7 +29,7 @@ class BaseView(web.View):
                     'fieldErrors': result.errors,
                     'details': 'Validation failed'
                 },
-                error_code=400
+                status_code=400
             )
         self.validated_data = result.data
 
@@ -43,8 +44,25 @@ class BaseView(web.View):
             yield from self.pre_process_request()
             resp = yield from method()
         except BaseAPIException as e:
-            return e.response
+            resp = e.response
         return resp
+
+
+class ViewSet(BaseView):
+    serializers_map = {}
+    default_serializer = Schema()
+    default_response_serializer = Schema()
+    response_serializer_map = {}
+
+    @property
+    def serializer(self):
+        serializer = self.serializers_map.get(self.request.method, self.default_serializer)
+        return serializer
+
+    @property
+    def response_serializer(self):
+        serializer = self.response_serializer_map.get(self.request.method, self.default_response_serializer)
+        return serializer
 
 
 class PaginateMixin:
