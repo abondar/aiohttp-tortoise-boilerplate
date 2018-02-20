@@ -9,8 +9,8 @@ class BaseAPIException(Exception):
 
     def __init__(self, details=None, status_code=None, *args, **kwargs):
         super().__init__(details, status_code, *args)
-        assert isinstance(details, Mapping), 'details should be dict-like object'
-        assert isinstance(status_code, Integral), 'status_code should be int'
+        assert not details or isinstance(details, Mapping), 'details should be dict-like object'
+        assert not status_code or isinstance(status_code, Integral), 'status_code should be int'
         self.details = details if details else {'details': self.default_message}
         self.status_code = status_code if status_code else self.default_status_code
 

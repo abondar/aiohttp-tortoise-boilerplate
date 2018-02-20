@@ -1,4 +1,3 @@
-import asyncio
 import datetime
 import json
 
@@ -33,16 +32,15 @@ class BaseView(web.View):
             )
         self.validated_data = result.data
 
-    @asyncio.coroutine
-    def __iter__(self):
-        if self.request._method not in hdrs.METH_ALL:
+    async def _iter(self):
+        if self.request.method not in hdrs.METH_ALL:
             self._raise_allowed_methods()
-        method = getattr(self, self.request._method.lower(), None)
+        method = getattr(self, self.request.method.lower(), None)
         if method is None:
             self._raise_allowed_methods()
         try:
-            yield from self.pre_process_request()
-            resp = yield from method()
+            await self.pre_process_request()
+            resp = await method()
         except BaseAPIException as e:
             resp = e.response
         return resp
