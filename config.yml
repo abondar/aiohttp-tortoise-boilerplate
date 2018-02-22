@@ -5,3 +5,4 @@ database:
   database: app
   password: testpassword
   test_database: test_app
+log_level: DEBUG

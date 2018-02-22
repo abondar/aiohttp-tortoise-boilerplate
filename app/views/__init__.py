@@ -5,7 +5,8 @@ from aiohttp import web, hdrs
 from marshmallow import Schema
 from multidict import MultiDict
 
-from app.exceptions import APIException, BaseAPIException
+from app.exceptions import APIException, BaseAPIException, NotFound
+from app.models import Model
 
 
 class BaseView(web.View):
@@ -101,3 +102,44 @@ class PaginateMixin:
                 params[key] = value.isoformat()
         uri = self.request.match_info.route.resource.url_for().with_query(params)
         return f'{self.request.scheme}://{self.request.host}{uri}'
+
+
+class GenericListView(ViewSet, PaginateMixin):
+    model = Model
+
+    async def post(self):
+        instance = self.model(self.validated_data)
+        await instance.fetch_related_models(self.request.app['db'])
+        await instance.save(self.request.app['db'])
+        response_data, _ = self.response_serializer.dump(instance)
+        return web.json_response(response_data)
+
+    async def get(self):
+        instance_list = await self.model.get_list(self.request.app['db'], **self.validated_data)
+        instance_count = await self.model.get_count(self.request.app['db'], **self.validated_data)
+        serialized_response, _ = self.response_serializer.dump(instance_list)
+        paginated_response = self.paginate_result(serialized_response, instance_count)
+        return web.json_response(paginated_response)
+
+
+class GenericDetailView(ViewSet):
+    model = Model
+
+    async def get(self):
+        object_id = self.request.match_info['id']
+        instance = await self.model.get_by_id(self.request.app['db'], object_id)
+        if not instance:
+            raise NotFound()
+        response_data, _ = self.response_serializer.dump(instance)
+        return web.json_response(response_data)
+
+    async def patch(self):
+        object_id = self.request.match_info['id']
+        instance = await self.model.get_by_id(self.request.app['db'], object_id)
+        if not instance:
+            raise NotFound()
+        for field, value in self.validated_data.items():
+            setattr(instance, field, value)
+        await instance.save(self.request.app['db'])
+        response_data, _ = self.response_serializer.dump(instance)
+        return web.json_response(response_data)

@@ -34,3 +34,8 @@ class ProcessingError(APIException):
         details = {'details': message if message else self.default_message}
         super().__init__(details=details, *args, **kwargs)
 
+
+class NotFound(ProcessingError):
+    default_message = 'Object not found'
+    default_status_code = 404
+    default_error_code = 404

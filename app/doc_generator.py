@@ -117,7 +117,7 @@ class DocumentationGenerator:
         schema = {
             'paths': [],
             'info': {
-                'title': 'Quests API',
+                'title': 'API',
                 'version': '1.0.0',
             },
         }

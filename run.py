@@ -4,6 +4,7 @@ import logging
 
 from aiohttp import web
 
+import settings
 from app.router import setup_routes
 from app.services.db_client import DBAsyncClient
 from run_migrations import run_migrations
@@ -12,7 +13,10 @@ from settings import DB_CONFIG
 
 def start_app(port):
     app = web.Application()
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(
+        format='%(asctime)s %(name)s %(levelname)s %(message)s',
+        level=settings.LOG_LEVEL
+    )
 
     app['db'] = DBAsyncClient(**DB_CONFIG)
     loop = asyncio.get_event_loop()
