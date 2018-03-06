@@ -1,6 +1,10 @@
 import asyncio
 import logging
 
+from pypika import PostgreSQLQuery as Query, JoinType
+from pypika import Table, Order
+from pypika.functions import Count
+
 import asyncpg
 
 
@@ -45,3 +49,43 @@ class DBAsyncClient:
             return self._db_pool.acquire()
         else:
             return ConnectionWrapper(self._connection)
+
+    async def _generic_get_data(self, table_name, fields, params_info, **kwargs):
+        table = Table(table_name)
+        query = Query.from_(table).select(*[getattr(table, field) for field in fields])
+        for key, value in kwargs.items():
+            if key in params_info:
+                param = params_info[key]
+                query = query.where(param['operator'](getattr(table, param['field']), value))
+        if 'limit' in kwargs:
+            query = query.limit(kwargs.get('limit'))
+        if 'offset' in kwargs:
+            query = query.offset(kwargs.get('offset'))
+        async with self.acquire_connection() as connection:
+            self.log.debug(query)
+            results = await connection.fetch(str(query))
+            return [dict(**entry) for entry in results]
+
+    async def _generic_get_count(self, table_name, params_info, **kwargs):
+        table = Table(table_name)
+        query = Query.from_(table).select(Count(table.star))
+        for key, value in kwargs.items():
+            if key in params_info:
+                param = params_info[key]
+                query = query.where(param['operator'](getattr(table, param['field']), value))
+        async with self.acquire_connection() as connection:
+            self.log.debug(query)
+            count = await connection.fetchval(str(query))
+            return count
+
+    async def _select_related_data(self, objects, table_name):
+        related_objects_for_fetch = set()
+        for instance in objects:
+            related_objects_for_fetch.add(getattr(instance, f'{table_name}_id'))
+        if related_objects_for_fetch:
+            method = getattr(self, f'get_{table_name}_list')
+            related_object_list = await method(id__in=list(related_objects_for_fetch))
+            related_object_map = {a.id: a for a in related_object_list}
+            for instance in objects:
+                setattr(instance, table_name, related_object_map.get(getattr(instance, f'{table_name}_id')))
+        return objects

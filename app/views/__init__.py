@@ -5,7 +5,7 @@ from aiohttp import web, hdrs
 from marshmallow import Schema
 from multidict import MultiDict
 
-from app.exceptions import APIException, BaseAPIException, NotFound
+from app.exceptions import APIException, BaseAPIException, NotFound, ProcessingError
 from app.models import Model
 
 
@@ -17,7 +17,10 @@ class BaseView(web.View):
         if self.request._method in {hdrs.METH_POST, hdrs.METH_PUT, hdrs.METH_PATCH, hdrs.METH_DELETE}:
             data_raw = await self.request.text()
             if data_raw:
-                data = json.loads(data_raw)
+                try:
+                    data = json.loads(data_raw)
+                except json.JSONDecodeError:
+                    raise ProcessingError('Data parsing error, expected json')
             else:
                 data = {}
         else:
