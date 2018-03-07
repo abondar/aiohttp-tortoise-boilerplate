@@ -2,6 +2,7 @@ import argparse
 import asyncio
 import logging
 
+import uvloop
 from aiohttp import web
 
 import settings
@@ -9,6 +10,9 @@ from app.router import setup_routes
 from app.services.db_client import DBAsyncClient
 from run_migrations import run_migrations
 from settings import DB_CONFIG
+
+
+asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
 
 def start_app(port):
