@@ -2,7 +2,7 @@ class Model:
     def __init__(self, *args, **kwargs):
         pass
 
-    def fetch_related_models(self, db):
+    async def fetch_related_models(self, db):
         return
 
     async def save(self, db):

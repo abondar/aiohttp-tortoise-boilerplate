@@ -50,6 +50,12 @@ class DBAsyncClient:
         else:
             return ConnectionWrapper(self._connection)
 
+    def in_transaction(self):
+        if self.single_connection:
+            return TransactionWrapper(connection=self._connection)
+        else:
+            return TransactionWrapper(pool=self._db_pool)
+
     async def _generic_get_data(self, table_name, fields, params_info, **kwargs):
         table = Table(table_name)
         query = Query.from_(table).select(*[getattr(table, field) for field in fields])
@@ -89,3 +95,33 @@ class DBAsyncClient:
             for instance in objects:
                 setattr(instance, table_name, related_object_map.get(getattr(instance, f'{table_name}_id')))
         return objects
+
+
+class TransactionWrapper(DBAsyncClient):
+    def __init__(self, pool=None, connection=None):
+        assert bool(pool) != bool(connection), 'You must pass either connection or pool'
+        self._connection = connection
+        self.log = logging.getLogger()
+        self._pool = pool
+        self.single_connection = True
+
+    def acquire_connection(self):
+        return ConnectionWrapper(self._connection)
+
+    async def _get_connection(self):
+        return await self._pool._acquire(None)
+
+    async def __aenter__(self):
+        if not self._connection:
+            self._connection = await self._get_connection()
+        self.transaction = self._connection.transaction()
+        await self.transaction.start()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        if exc_type:
+            await self.transaction.rollback()
+            return False
+        await self.transaction.commit()
+        if self._pool:
+            await self._pool.release(self._connection)
