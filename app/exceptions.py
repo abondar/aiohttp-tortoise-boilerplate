@@ -39,3 +39,10 @@ class NotFound(ProcessingError):
     default_message = 'Object not found'
     default_status_code = 404
     default_error_code = 404
+
+
+class AuthError(ProcessingError):
+    default_message = 'Auth failed'
+    default_error_code = 401
+    default_status_code = 401
+

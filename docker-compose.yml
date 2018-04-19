@@ -23,7 +23,7 @@ services:
 
     environment:
       LC_ALL: C.UTF-8
-      POSTGRES_PASSWORD: testpassword # CHANGE_ME
+      POSTGRES_PASSWORD: testpassword # CHANGE ME
       POSTGRES_DB: app
 
     networks:

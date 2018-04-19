@@ -9,6 +9,7 @@ from settings import DB_CONFIG
 
 DSN = 'postgres://{user}:{password}@{host}:{port}/{database}'
 
+
 async def run_migrations(dsn=None):
     if not dsn:
         dsn = DSN.format(**DB_CONFIG)

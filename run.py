@@ -4,6 +4,7 @@ import logging
 
 import uvloop
 from aiohttp import web
+from tortoise import Tortoise
 
 import settings
 from app.router import setup_routes
@@ -24,6 +25,8 @@ def start_app(port):
 
     app['db'] = DBAsyncClient(**DB_CONFIG)
     loop = asyncio.get_event_loop()
+    loop.run_until_complete(app['db'].create_connection())
+    Tortoise.init(app['db'])
     loop.run_until_complete(run_migrations())
     setup_routes(app)
     web.run_app(app, port=port)
@@ -31,7 +34,7 @@ def start_app(port):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--port', help='Port, on which server will be serving')
+    parser.add_argument('--port', help='Port where server will be serving')
     args = parser.parse_args()
     port = int(args.port) if args.port else 5000
     start_app(port)

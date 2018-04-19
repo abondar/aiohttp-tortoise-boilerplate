@@ -2,7 +2,8 @@ from aiohttp import web
 from aiohttp.web_urldispatcher import PlainResource, DynamicResource
 from marshmallow import fields as marshmallow_field
 
-from app.views import ViewSet, BaseView, PaginateMixin
+from app.serializers import TimeStamp, ModelSerializer
+from app.views import ViewSet, BaseView, StandardPagination
 import inspect
 
 
@@ -46,6 +47,11 @@ class DocumentationGenerator:
             if isinstance(field, marshmallow_field.List):
                 field_type = FIELD_TYPES_VERBOSE.get(field.container.__class__, "Unknown type")
                 parameter_info['type'] = f'List of {field_type}'
+            elif isinstance(field, marshmallow_field.Nested) and issubclass(field.nested, ModelSerializer):
+                if field.many:
+                    parameter_info['type'] = f'List of [{{{field.nested.Meta.model.__name__}}}]'
+                else:
+                    parameter_info['type'] = f'{{{field.nested.Meta.model.__name__}}}'
             parameters.append(parameter_info)
         return parameters
 
@@ -58,13 +64,17 @@ class DocumentationGenerator:
             field_info = {
                 'name': name,
                 'description': field.metadata.get('description', ''),
-                'default': field.default if field.default else None,
                 'type': FIELD_TYPES_VERBOSE.get(field.__class__, 'Unknown type')
             }
 
             if isinstance(field, marshmallow_field.List):
                 field_type = FIELD_TYPES_VERBOSE.get(field.container.__class__, "Unknown type")
-                field_info['type'] = f'List of {field_type}'
+                field_info['type'] = f'List of [{field_type}]'
+            elif isinstance(field, marshmallow_field.Nested) and issubclass(field.nested, ModelSerializer):
+                if field.many:
+                    field_info['type'] = f'List of [{{{field.nested.Meta.model.__name__}}}]'
+                else:
+                    field_info['type'] = f'{{{field.nested.Meta.model.__name__}}}'
             response_fields.append(field_info)
         return response_fields
 
@@ -87,7 +97,7 @@ class DocumentationGenerator:
             'parameters': parameters,
             'response': {
                 'is_list': response_serializer.many,
-                'paginated': issubclass(handler, PaginateMixin),
+                'paginated': bool(hasattr(handler, 'pagination_class') and handler.pagination_class),
                 'fields': response_fields,
             },
             'description': docstring if docstring else '',

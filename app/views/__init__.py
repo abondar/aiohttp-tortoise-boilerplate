@@ -3,24 +3,30 @@ import json
 
 from aiohttp import web, hdrs
 from marshmallow import Schema
-from multidict import MultiDict
 
-from app.exceptions import APIException, BaseAPIException, NotFound, ProcessingError
-from app.models import Model
+from app.exceptions import APIException, BaseAPIException, NotFound, AuthError
+from app.serializers import ModelSerializer
 
 
 class BaseView(web.View):
     serializer = Schema()
     response_serializer = Schema()
+    permission_classes = ()
+    user = None
+
+    def check_permissions(self):
+        for permission in self.permission_classes:
+            if not permission().has_permission(self.request):
+                raise AuthError()
 
     async def pre_process_request(self):
+        self.user = await self.get_user()
+        self.request.user = self.user
+        self.check_permissions()
         if self.request._method in {hdrs.METH_POST, hdrs.METH_PUT, hdrs.METH_PATCH, hdrs.METH_DELETE}:
             data_raw = await self.request.text()
             if data_raw:
-                try:
-                    data = json.loads(data_raw)
-                except json.JSONDecodeError:
-                    raise ProcessingError('Data parsing error, expected json')
+                data = json.loads(data_raw)
             else:
                 data = {}
         else:
@@ -36,6 +42,13 @@ class BaseView(web.View):
             )
         self.validated_data = result.data
 
+    async def get_user(self):
+        token = self.request.headers.get('Authorization')
+        if not token:
+            return
+        user = await User.filter(token=token).first()
+        return user
+
     async def _iter(self):
         if self.request.method not in hdrs.METH_ALL:
             self._raise_allowed_methods()
@@ -48,6 +61,15 @@ class BaseView(web.View):
         except BaseAPIException as e:
             resp = e.response
         return resp
+
+    def get_request_url(self, params):
+        for key, value in params.items():
+            if isinstance(value, bool):
+                params[key] = 'true' if value else 'false'
+            elif isinstance(value, datetime.datetime):
+                params[key] = value.isoformat()
+        uri = self.request.match_info.route.resource.url_for().with_query(params)
+        return f'{self.request.scheme}://{self.request.host}{uri}'
 
 
 class ViewSet(BaseView):
@@ -67,82 +89,102 @@ class ViewSet(BaseView):
         return serializer
 
 
-class PaginateMixin:
-    page_size = 10
+class GenericViewSet(ViewSet):
+    queryset = None
+
+    def get_queryset(self):
+        return self.queryset.all()
+
+    async def get_object(self):
+        queryset = self.get_queryset()
+        instance_id = self.request.match_info.get('id')
+        if not instance_id:
+            raise NotFound()
+        instance = await queryset.filter(id=instance_id).first()
+        if not instance:
+            raise NotFound()
+        return instance
+
+
+class ListMixin:
+    pagination_class = None
+    ordering = None
+
+    def paginate_query(self, queryset):
+        return self.pagination_class().paginate_query(queryset, self.request)
 
     def paginate_result(self, result, count):
-        query_params = MultiDict(self.request.query)
-        page = int(query_params.get('page', 1))
-        page_size = int(query_params.get('page_size', self.page_size))
+        return self.pagination_class().paginate_result(result, count, self.request)
 
-        response = {
-            'count': count,
-            'next': None,
-            'previous': None,
-            'result': result,
-        }
+    def order_queryset(self, queryset):
+        ordering = self.request.query.get('order_by', self.ordering)
+        if not ordering:
+            return queryset
+        try:
+            queryset = queryset.order_by(ordering)
+        except AssertionError:
+            pass
+        return queryset
 
-        if page > 1:
-            previous_page_params = query_params
-            if (page_size * (page - 1)) > count and count:
-                previous_page_params['page'] = int(count / page_size) + 1
-            else:
-                previous_page_params['page'] = page - 1
-            response['previous'] = self.get_request_url(previous_page_params)
-
-        if (page * page_size) < count:
-            next_page_params = query_params
-            next_page_params['page'] = page + 1
-            response['next'] = self.get_request_url(next_page_params)
-
-        return response
-
-    def get_request_url(self, params):
-        for key, value in params.items():
-            if isinstance(value, bool):
-                params[key] = 'true' if value else 'false'
-            elif isinstance(value, datetime.datetime):
-                params[key] = value.isoformat()
-        uri = self.request.match_info.route.resource.url_for().with_query(params)
-        return f'{self.request.scheme}://{self.request.host}{uri}'
+    async def get(self):
+        queryset = self.get_queryset()
+        if self.pagination_class:
+            queryset = self.paginate_query(queryset)
+        queryset = self.order_queryset(queryset)
+        instance_list = await queryset.filter(**self.validated_data)
+        instance_count = await self.get_queryset().filter(**self.validated_data).count()
+        if isinstance(self.response_serializer, ModelSerializer):
+            response_data = await self.response_serializer.dump_with_prefetch(instance_list)
+        else:
+            response_data, _ = self.response_serializer.dump(instance_list)
+        if self.pagination_class:
+            response_data = self.paginate_result(response_data, instance_count)
+        return web.json_response(response_data)
 
 
-class GenericListView(ViewSet, PaginateMixin):
-    model = Model
-
+class CreateMixin:
     async def post(self):
-        instance = self.model(self.validated_data)
-        await instance.fetch_related_models(self.request.app['db'])
-        await instance.save(self.request.app['db'])
-        response_data, _ = self.response_serializer.dump(instance)
+        instance = await self.queryset.model.create(**self.validated_data)
+        if isinstance(self.response_serializer, ModelSerializer):
+            response_data = await self.response_serializer.dump_with_prefetch(instance)
+        else:
+            response_data, _ = self.response_serializer.dump(instance)
         return web.json_response(response_data)
 
+
+class RetrieveMixin:
     async def get(self):
-        instance_list = await self.model.get_list(self.request.app['db'], **self.validated_data)
-        instance_count = await self.model.get_count(self.request.app['db'], **self.validated_data)
-        serialized_response, _ = self.response_serializer.dump(instance_list)
-        paginated_response = self.paginate_result(serialized_response, instance_count)
-        return web.json_response(paginated_response)
-
-
-class GenericDetailView(ViewSet):
-    model = Model
-
-    async def get(self):
-        object_id = self.request.match_info['id']
-        instance = await self.model.get_by_id(self.request.app['db'], object_id)
-        if not instance:
-            raise NotFound()
-        response_data, _ = self.response_serializer.dump(instance)
+        instance = await self.get_object()
+        if isinstance(self.response_serializer, ModelSerializer):
+            response_data = await self.response_serializer.dump_with_prefetch(instance)
+        else:
+            response_data, _ = self.response_serializer.dump(instance)
         return web.json_response(response_data)
 
+
+class UpdateMixin:
     async def patch(self):
-        object_id = self.request.match_info['id']
-        instance = await self.model.get_by_id(self.request.app['db'], object_id)
-        if not instance:
-            raise NotFound()
+        instance = await self.get_object()
         for field, value in self.validated_data.items():
             setattr(instance, field, value)
-        await instance.save(self.request.app['db'])
-        response_data, _ = self.response_serializer.dump(instance)
+        await instance.save()
+        if isinstance(self.response_serializer, ModelSerializer):
+            response_data = await self.response_serializer.dump_with_prefetch(instance)
+        else:
+            response_data, _ = self.response_serializer.dump(instance)
         return web.json_response(response_data)
+
+
+class DestroyMixin:
+    async def delete(self):
+        instance = await self.get_object()
+        await instance.delete()
+        return web.json_response(status=204)
+
+
+class GenericListViewSet(ListMixin, CreateMixin, GenericViewSet):
+    pass
+
+
+class GenericDetailViewSet(RetrieveMixin, UpdateMixin, DestroyMixin, GenericViewSet):
+    pass
