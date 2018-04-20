@@ -3,4 +3,6 @@ asyncpg==0.15.0
 marshmallow==2.13.5
 tortoise-orm==0.7.4
 uvloop==0.9.1
+pytest==3.5.0
+pytest-aiohttp==0.3.0
 PyYAML==3.12

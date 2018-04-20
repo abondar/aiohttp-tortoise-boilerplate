@@ -10,9 +10,10 @@ from settings import DB_CONFIG
 DSN = 'postgres://{user}:{password}@{host}:{port}/{database}'
 
 
-async def run_migrations(dsn=None):
+async def run_migrations(dsn=None, db_config=None):
     if not dsn:
-        dsn = DSN.format(**DB_CONFIG)
+        db_config = db_config if db_config else DB_CONFIG
+        dsn = DSN.format(**db_config)
     connection = await asyncpg.connect(dsn)
     migrations = sorted([m for m in os.listdir('migrations/') if m.endswith('.sql')])
     first_migration = next((m for m in migrations), None)
